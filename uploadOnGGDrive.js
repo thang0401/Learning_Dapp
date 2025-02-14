@@ -124,7 +124,14 @@ async function uploadToGoogleDrive(encryptedFile, fileName) {
   
   // Display the file link in the page
   document.getElementById("fileLink").innerHTML =
-    `<a href="https://drive.google.com/file/d/${fileData.id}/view" target="_blank">View File</a>`;
+    `<a href="https://drive.google.com/file/d/${fileData.id}/view" target="_blank">View File</a>
+    <p>File Link: <a href="https://drive.google.com/file/d/${fileData.id}/view" target="_blank">
+    https://drive.google.com/file/d/${fileData.id}/view</a></p>
+    <iframe src="https://drive.google.com/file/d/${fileData.id}/preview" 
+            width="640" height="480" frameborder="0" allowfullscreen></iframe>`;
+   
+
+
 }
 
 // --- Handle the Upload Process ---
@@ -152,6 +159,7 @@ async function handleUpload() {
     alert("File upload failed!");
   }
 }
+
 
 // --- Attach Event Listeners on Window Load ---
 window.addEventListener("load", () => {
