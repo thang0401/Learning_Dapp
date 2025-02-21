@@ -121,7 +121,7 @@ async function uploadFileToFolder(file, parentFolderId) {
 
   const fileData = await response.json();
 
-  // Set file permission to public (anyone with the link can view)
+  // ✅ Gán quyền public để ai cũng có thể xem file
   await fetch(
     `https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`,
     {
@@ -133,73 +133,73 @@ async function uploadFileToFolder(file, parentFolderId) {
       body: JSON.stringify({ role: "reader", type: "anyone" }),
     }
   );
+
   return fileData;
 }
+
 
 // --- Handle the Folder Upload Process ---
 // This function creates a root folder on Drive, then iterates through each file (using file.webkitRelativePath)
 // to rebuild the folder hierarchy and upload each file to its corresponding folder.
+let createdFolderId = null; // Lưu Folder ID mới tạo
+
+// 🔹 Hàm tạo thư mục mới trên Google Drive
+async function createNewRootFolder() {
+  try {
+    const folderName = "New Upload Folder " + new Date().toISOString();
+    createdFolderId = await createDriveFolder(folderName, null);
+    
+    // Hiển thị Folder ID vừa tạo
+    const folderIdElement = document.getElementById("createdFolderId");
+    folderIdElement.innerHTML = `
+      <p>Created folder: 
+        <a href="https://drive.google.com/drive/folders/${createdFolderId}" target="_blank">
+          ${createdFolderId}
+        </a>
+      </p>
+    `;
+
+    console.log("New root folder created:", createdFolderId);
+  } catch (error) {
+    console.error("Error creating new root folder:", error);
+    alert("Failed to create new folder!");
+  }
+}
+
+// 🔹 Cập nhật `handleFolderUpload()` để dùng Folder ID mới
 async function handleFolderUpload() {
   const folderInput = document.getElementById("folderInput");
+
   if (!folderInput.files || folderInput.files.length === 0) {
     alert("Please select a folder.");
     return;
   }
-
-  // Create a root folder on Google Drive.
-  const rootFolderName = "web3 course " + new Date().toISOString();
-  let rootFolderId;
-  try {
-    rootFolderId = await createDriveFolder(rootFolderName, null);
-    console.log("Created root folder with ID:", rootFolderId);
-    
-    document.getElementById("folderUploadStatus").innerHTML = `
-  <p>Created root folder with ID: 
-  <a href="https://drive.google.com/drive/folders/${rootFolderId}" target="_blank">
-    ${rootFolderId}
-  </a></p>
-`;
-
-  } catch (error) {
-    console.error("Error creating root folder:", error);
+  if (!createdFolderId) {
+    alert("Please create a folder first.");
     return;
   }
 
-  // This mapping will store folder paths (relative to the selected folder) to their Drive folder IDs.
+  console.log("Uploading files to folder:", createdFolderId);
   const folderMap = {};
-  // Map the empty path ("") to the root folder.
-  folderMap[""] = rootFolderId;
+  folderMap[""] = createdFolderId;
 
-  // Iterate over all files selected via the folder input.
   for (let i = 0; i < folderInput.files.length; i++) {
     const file = folderInput.files[i];
-    // file.webkitRelativePath returns something like "section 1/video.mp4" or "section 1/section 2/image.jpg"
     const relativePath = file.webkitRelativePath;
-    // Split into parts. The last part is the file name.
     const parts = relativePath.split("/");
     const fileName = parts.pop();
-    // The remaining parts represent the folder path (could be empty if file is directly in the root folder).
-    const folderPath = parts.join("/"); // e.g., "section 1" or "section 1/section 2"
+    const folderPath = parts.join("/");
 
-    // Determine the parent folder ID where this file should be uploaded.
-    let parentFolderId = rootFolderId;
+    let parentId = createdFolderId;
     if (folderPath) {
-      // If we haven't already created the folder for this relative path, create it.
       if (!folderMap[folderPath]) {
-        // Split the folderPath and create each folder level if needed.
         let currentPath = "";
-        let currentParentId = rootFolderId;
+        let currentParentId = createdFolderId;
         for (const folderName of folderPath.split("/")) {
-          currentPath = currentPath
-            ? currentPath + "/" + folderName
-            : folderName;
-          // If this level doesn't exist in our mapping, create it.
+          currentPath = currentPath ? currentPath + "/" + folderName : folderName;
           if (!folderMap[currentPath]) {
             try {
-              const newFolderId = await createDriveFolder(
-                folderName,
-                currentParentId
-              );
+              const newFolderId = await createDriveFolder(folderName, currentParentId);
               folderMap[currentPath] = newFolderId;
               currentParentId = newFolderId;
             } catch (err) {
@@ -209,23 +209,15 @@ async function handleFolderUpload() {
             currentParentId = folderMap[currentPath];
           }
         }
-        parentFolderId = currentParentId;
+        parentId = currentParentId;
       } else {
-        parentFolderId = folderMap[folderPath];
+        parentId = folderMap[folderPath];
       }
     }
 
-    // Upload the file into its designated parent folder.
     try {
-      const fileData = await uploadFileToFolder(file, parentFolderId);
-      console.log(
-        "Uploaded file:",
-        file.name,
-        "with ID:",
-        fileData.id,
-        "under folder:",
-        folderPath
-      );
+      const fileData = await uploadFileToFolder(file, parentId);
+      console.log("Uploaded file:", file.name, "ID:", fileData.id, "Folder:", folderPath);
     } catch (err) {
       console.error("Error uploading file", file.name, err);
     }
@@ -233,6 +225,14 @@ async function handleFolderUpload() {
 
   alert("Folder upload complete!");
 }
+
+// 🔹 Thêm sự kiện cho nút "Create New Folder"
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("createFolderButton").addEventListener("click", createNewRootFolder);
+});
+
+
+
 
 // --- Attach Event Listeners on Window Load ---
 window.addEventListener("load", () => {

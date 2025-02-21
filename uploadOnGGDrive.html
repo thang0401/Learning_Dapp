@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Updated CSP to allow required domains -->
-  <!-- <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net;"> -->
   <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net;">
 
   <title>E-Learning DApp - Folder Upload</title>
@@ -18,13 +16,16 @@
 </head>
 <body>
   <section>
-    <h1>Upload a Folder</h1>
-    <!-- Enable folder selection using webkitdirectory attribute -->
+    <h5>Upload a Folder</h5>
+    
+    <!-- Nút tạo thư mục mới -->
+    <button id="createFolderButton">Create New Folder</button>
+    <p id="createdFolderId"></p>
+    
     <input type="file" id="folderInput" webkitdirectory directory multiple />
-    <!-- Upload folder button; initially disabled until API is ready -->
     <button id="uploadFolderButton" disabled>Upload Folder</button>
     <div id="folderUploadStatus"></div>
-    <p id="fileLink"></p>
   </section>
+  
 </body>
 </html>
