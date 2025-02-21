@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Room Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+</head>
+<body>
+    <h2>Room Management</h2>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <p id="walletStatus">Not Connected</p>
+    
+    <h3>Create Room</h3>
+    <input type="text" id="createRoomId" placeholder="Enter Room ID" />
+    <input type="text" id="roomName" placeholder="Enter Room Name" />
+    <button onclick="createRoom()">Create</button>
+    
+    <h3>Join Room</h3>
+    <input type="text" id="joinRoomId" placeholder="Enter Room ID" />
+    <button onclick="joinRoom()">Join</button>
+    
+    <p id="status"></p>
+    <p id="roomId"></p>
+    <p id="createdroomName"></p>
+
+    <script>
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        let signer;
+        let contract;
+        
+        const contractAddress = "0xf4a45fa6b46979611d36137ef22f8fd80a07f69e";
+       
+        
+        async function connectWallet() {
+            try {
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                contract = new ethers.Contract(contractAddress, contractABI2, signer);
+                document.getElementById("walletStatus").innerText = "Wallet Connected: " + await signer.getAddress();
+               
+            } catch (error) {
+                document.getElementById("walletStatus").innerText = "Connection Failed";
+            }
+        }
+        
+        async function createRoom() {
+            if (!signer) await connectWallet();
+            const roomId = document.getElementById("createRoomId").value;
+            const roomName = document.getElementById("roomName").value;
+            try {
+                const tx = await contract.createRoom(roomId, roomName);
+                document.getElementById("status").innerText = "Transaction Sent: " + tx.hash;
+                await tx.wait();
+                document.getElementById("status").innerText = "Room Created Successfully!";
+                document.getElementById("roomId").innerText = "Room ID: " + roomId;
+                document.getElementById("createdroomName").innerText = "Room Name: " + roomName;
+            } catch (error) {
+                document.getElementById("status").innerText = "Error: " + error.message;
+            }
+        }
+        
+        async function joinRoom() {
+            if (!signer) await connectWallet();
+            const roomId = document.getElementById("joinRoomId").value;
+            try {
+                const tx = await contract.joinRoom(roomId);
+                document.getElementById("status").innerText = "Transaction Sent: " + tx.hash;
+                await tx.wait();
+                document.getElementById("status").innerText = "Joined Room Successfully!";
+            } catch (error) {
+                document.getElementById("status").innerText = "Error: " + error.message;
+            }
+        }
+    </script>
+    <script src="contractABI2.js"></script>
+</body>
+</html>
