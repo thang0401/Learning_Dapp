@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Course Series & Tags</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h2, h3, h4, h5 {
+            margin-bottom: 10px;
+        }
+        input, button {
+            margin: 5px 0;
+            padding: 8px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .module, .tag-container {
+            padding: 15px;
+            background: white;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .lesson {
+            padding-left: 15px;
+            margin-top: 10px;
+        }
+        .tag-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div>
+        <h2>Create Course Page</h2>
+    </div>
+    <div>
+        <label>Course Title: <input type="text"></label><br>
+        <label>General Course Description: <input type="text"></label><br>
+        <label>Course Lecturer: <input type="text"></label><br>
+    </div>
+
+    <div>
+        <h3>Tags (Learned Skill)</h3>
+        <div id="tag-container" class="tag-container">
+            <!-- Tags will be added here -->
+        </div>
+        <button id="add-tag-btn">Add New Tag</button>
+    </div>
+
+    <div id="module-container">
+        <!-- Course series will be added here dynamically -->
+    </div>
+
+    <button id="add-series-btn">Add New Series</button>
+
+    <script>
+        let seriesCount = 0;  // Count for series
+        let tagCount = 0; // Count for tags
+        const moduleContainer = document.getElementById("module-container");
+        const addSeriesBtn = document.getElementById("add-series-btn");
+        const addTagBtn = document.getElementById("add-tag-btn");
+        const tagContainer = document.getElementById("tag-container");
+
+        // Function to add a new course series
+        function addNewSeries() {
+            seriesCount++;
+            const seriesDiv = document.createElement("div");
+            seriesDiv.classList.add("module");
+            seriesDiv.dataset.seriesId = seriesCount;
+
+            seriesDiv.innerHTML = `
+                <h4>Course Series ${seriesCount}</h4>
+                <label>Series Title: <input type="text"></label><br>
+                <label>Series Description: <input type="text"></label><br>
+                <div class="lesson-container">
+                    <h5>Lesson 1</h5>
+                    <label>Lesson Title: <input type="text"></label><br>
+                    <label>GG Drive URL: <input type="file"></label><br>
+                </div>
+                <button class="add-lesson-btn">Add New Lesson</button>
+            `;
+
+            moduleContainer.appendChild(seriesDiv);
+
+            // Add event listener for adding new lessons within this series
+            seriesDiv.querySelector(".add-lesson-btn").addEventListener("click", function () {
+                addNewLesson(seriesDiv);
+            });
+        }
+
+        // Function to add a new lesson within a specific series
+        function addNewLesson(seriesDiv) {
+            const lessonContainer = seriesDiv.querySelector(".lesson-container");
+            const lessonCount = lessonContainer.querySelectorAll("h5").length + 1;
+
+            const lessonDiv = document.createElement("div");
+            lessonDiv.classList.add("lesson");
+
+            lessonDiv.innerHTML = `
+                <h5>Lesson ${lessonCount}</h5>
+                <label>Lesson Title: <input type="text"></label><br>
+                <label>GG Drive URL: <input type="file"></label><br>
+            `;
+
+            lessonContainer.appendChild(lessonDiv);
+        }
+
+        // Function to add a new tag
+        function addNewTag() {
+            tagCount++;
+            const tagDiv = document.createElement("div");
+            tagDiv.innerHTML = `
+                <label>Tag ${tagCount}: <input type="text"></label>
+            `;
+            tagContainer.appendChild(tagDiv);
+        }
+
+        // Attach event listeners
+        addSeriesBtn.addEventListener("click", addNewSeries);
+        addTagBtn.addEventListener("click", addNewTag);
+
+        // Add first series & first tag automatically on page load
+        addNewSeries();
+        addNewTag();
+    </script>
+    
+</body>
+</html>

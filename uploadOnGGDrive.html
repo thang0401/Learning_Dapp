@@ -3,24 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Updated CSP to include accounts.google.com and avoid inline scripts -->
-  <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net;">
-  <title>E-Learning DApp</title>
+  <!-- Updated CSP to allow required domains -->
+  <!-- <meta http-equiv="Content-Security-Policy" content="script-src 'self' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net;"> -->
+  <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' https://accounts.google.com https://apis.google.com https://www.gstatic.com https://cdn.jsdelivr.net;">
+
+  <title>E-Learning DApp - Folder Upload</title>
   <!-- Load the new GIS client script -->
   <script src="https://accounts.google.com/gsi/client" defer></script>
   <!-- Load Google API (if needed) -->
   <script src="https://apis.google.com/js/api.js" defer></script>
-  <!-- Load your custom script -->
+  <!-- Load your custom script for folder upload -->
   <script src="uploadOnGGDrive.js" defer></script>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <section>
-    <h1>Upload Encrypted Video</h1>
-    <input type="file" id="fileInput" />
-    <!-- Remove inline event handlers; attach via JS -->
-    <button id="uploadButton" disabled>Upload & Encrypt</button>
-    <h2>Uploaded File:</h2>
+    <h1>Upload a Folder</h1>
+    <!-- Enable folder selection using webkitdirectory attribute -->
+    <input type="file" id="folderInput" webkitdirectory directory multiple />
+    <!-- Upload folder button; initially disabled until API is ready -->
+    <button id="uploadFolderButton" disabled>Upload Folder</button>
+    <div id="folderUploadStatus"></div>
     <p id="fileLink"></p>
   </section>
 </body>

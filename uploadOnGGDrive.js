@@ -1,16 +1,16 @@
 // --- Configuration for Google API ---
-const CLIENT_ID = "752606603363-vjm8ml0q0756lt9656t956e5nlbt93n8.apps.googleusercontent.com";
+const CLIENT_ID =
+  "752606603363-vjm8ml0q0756lt9656t956e5nlbt93n8.apps.googleusercontent.com";
 const API_KEY = "AIzaSyCNNeuyRg8HA5j1LqmLsfCYpdgTSkodNzM";
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
 
-// --- Global variables for OAuth2 token and encryption ---
+// --- Global variables for OAuth2 token ---
 let tokenClient;
-let accessToken = null;  // Will hold the OAuth2 access token
-let encryptionKey, iv;   // To store the encryption key and initialization vector
+let accessToken = null;
 
 // --- Load and Initialize Google Identity Services OAuth2 Client ---
 function loadGoogleAPI() {
-  // The new GIS client script (https://accounts.google.com/gsi/client) should already be loaded via HTML.
+  // Assumes the new GIS client script is loaded via HTML.
   initTokenClient();
 }
 
@@ -25,12 +25,12 @@ function initTokenClient() {
         accessToken = response.access_token;
         console.log("Access token obtained:", accessToken);
       }
-    }
+    },
   });
-  // Enable the upload button once the token client is initialized.
-  const uploadButton = document.getElementById("uploadButton");
-  if (uploadButton) {
-    uploadButton.disabled = false;
+  // Enable the upload folder button once the token client is initialized.
+  const uploadFolderButton = document.getElementById("uploadFolderButton");
+  if (uploadFolderButton) {
+    uploadFolderButton.disabled = false;
   }
 }
 
@@ -51,69 +51,34 @@ function requestAccessToken() {
   });
 }
 
-// --- Encrypt a File Using AES-GCM ---
-async function encryptFile(file) {
-  // Generate a new AES-GCM key (256-bit)
-  const cryptoKey = await window.crypto.subtle.generateKey(
-    { name: "AES-GCM", length: 256 },
-    true,
-    ["encrypt", "decrypt"]
-  );
-  // Export and store the key (if you need to save it for later decryption)
-  encryptionKey = await window.crypto.subtle.exportKey("raw", cryptoKey);
-  // Generate a random 12-byte IV (recommended for AES-GCM)
-  iv = window.crypto.getRandomValues(new Uint8Array(12));
-  
-  // Read the file as an ArrayBuffer
-  const fileBuffer = await file.arrayBuffer();
-  // Encrypt the file buffer
-  const encryptedBuffer = await window.crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: iv },
-    cryptoKey,
-    fileBuffer
-  );
-  
-  // Combine the IV and the encrypted data so you can use the IV later during decryption.
-  const combined = new Uint8Array(iv.byteLength + encryptedBuffer.byteLength);
-  combined.set(iv, 0);
-  combined.set(new Uint8Array(encryptedBuffer), iv.byteLength);
-  
-  // Return a Blob of the combined data.
-  return new Blob([combined], { type: "application/octet-stream" });
-}
-
-// --- Upload the Encrypted File to Google Drive ---
-async function uploadToGoogleDrive(encryptedFile, fileName) {
-  if (!accessToken) {
-    alert("Access token is not available. Please try again later.");
-    return;
-  }
-  // Prepare file metadata (replace with your actual Google Drive folder ID)
+// --- Create a Folder in Google Drive ---
+// If parentFolderId is provided, the new folder is created within it.
+async function createDriveFolder(folderName, parentFolderId) {
   const metadata = {
-    name: fileName,
-    mimeType: "application/octet-stream",
-    parents: ["1oDRm2-uDrAHukn8jivdNU9G-uxKIqp8X"] // <-- Replace with your folder ID
+    name: folderName,
+    mimeType: "application/vnd.google-apps.folder"
   };
-  
-  const formData = new FormData();
-  formData.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
-  formData.append("file", encryptedFile);
-  
-  // Upload via Drive API endpoint
-  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
-    body: formData
-  });
-  
-  if (!response.ok) {
-    throw new Error("Upload failed with status " + response.status);
+  if (parentFolderId) {
+    metadata.parents = [parentFolderId];
   }
-  
-  const fileData = await response.json();
-  
-  // Set file permission to public (anyone with the link can view)
-  await fetch(`https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`, {
+
+  const response = await fetch("https://www.googleapis.com/drive/v3/files", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(metadata)
+  });
+
+  if (!response.ok) {
+    throw new Error("Folder creation failed: " + response.status);
+  }
+
+  const folderData = await response.json();
+
+  // Set folder permission to public (anyone with the link can view)
+  await fetch(`https://www.googleapis.com/drive/v3/files/${folderData.id}/permissions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -121,56 +86,170 @@ async function uploadToGoogleDrive(encryptedFile, fileName) {
     },
     body: JSON.stringify({ role: "reader", type: "anyone" })
   });
-  
-  // Display the file link in the page
-  document.getElementById("fileLink").innerHTML =
-    `<a href="https://drive.google.com/file/d/${fileData.id}/view" target="_blank">View File</a>
-    <p>File Link: <a href="https://drive.google.com/file/d/${fileData.id}/view" target="_blank">
-    https://drive.google.com/file/d/${fileData.id}/view</a></p>
-    <iframe src="https://drive.google.com/file/d/${fileData.id}/preview" 
-            width="640" height="480" frameborder="0" allowfullscreen></iframe>`;
-   
 
-
+  return folderData.id;
 }
 
-// --- Handle the Upload Process ---
-async function handleUpload() {
-  const fileInput = document.getElementById("fileInput");
-  if (!fileInput.files || fileInput.files.length === 0) {
-    alert("Please select a file.");
+
+// --- Upload a Single File to a Specified Folder ---
+async function uploadFileToFolder(file, parentFolderId) {
+  const metadata = {
+    name: file.name,
+    mimeType: file.type,
+    parents: [parentFolderId],
+  };
+
+  const formData = new FormData();
+  formData.append(
+    "metadata",
+    new Blob([JSON.stringify(metadata)], { type: "application/json" })
+  );
+  formData.append("file", file);
+
+  const response = await fetch(
+    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("File upload failed: " + response.status);
+  }
+
+  const fileData = await response.json();
+
+  // Set file permission to public (anyone with the link can view)
+  await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ role: "reader", type: "anyone" }),
+    }
+  );
+  return fileData;
+}
+
+// --- Handle the Folder Upload Process ---
+// This function creates a root folder on Drive, then iterates through each file (using file.webkitRelativePath)
+// to rebuild the folder hierarchy and upload each file to its corresponding folder.
+async function handleFolderUpload() {
+  const folderInput = document.getElementById("folderInput");
+  if (!folderInput.files || folderInput.files.length === 0) {
+    alert("Please select a folder.");
     return;
   }
-  const file = fileInput.files[0];
-  
-  try {
-    // Ensure we have an access token; if not, request one.
-    if (!accessToken) {
-      await requestAccessToken();
-    }
-    
-    // Encrypt the file before uploading.
-    const encryptedFile = await encryptFile(file);
-    // Upload the encrypted file to Google Drive.
-    await uploadToGoogleDrive(encryptedFile, `Encrypted_${file.name}`);
-    alert("File uploaded and encrypted successfully!");
-  } catch (error) {
-    console.error("Error during file upload:", error);
-    alert("File upload failed!");
-  }
-}
 
+  // Create a root folder on Google Drive.
+  const rootFolderName = "web3 course " + new Date().toISOString();
+  let rootFolderId;
+  try {
+    rootFolderId = await createDriveFolder(rootFolderName, null);
+    console.log("Created root folder with ID:", rootFolderId);
+    
+    document.getElementById("folderUploadStatus").innerHTML = `
+  <p>Created root folder with ID: 
+  <a href="https://drive.google.com/drive/folders/${rootFolderId}" target="_blank">
+    ${rootFolderId}
+  </a></p>
+`;
+
+  } catch (error) {
+    console.error("Error creating root folder:", error);
+    return;
+  }
+
+  // This mapping will store folder paths (relative to the selected folder) to their Drive folder IDs.
+  const folderMap = {};
+  // Map the empty path ("") to the root folder.
+  folderMap[""] = rootFolderId;
+
+  // Iterate over all files selected via the folder input.
+  for (let i = 0; i < folderInput.files.length; i++) {
+    const file = folderInput.files[i];
+    // file.webkitRelativePath returns something like "section 1/video.mp4" or "section 1/section 2/image.jpg"
+    const relativePath = file.webkitRelativePath;
+    // Split into parts. The last part is the file name.
+    const parts = relativePath.split("/");
+    const fileName = parts.pop();
+    // The remaining parts represent the folder path (could be empty if file is directly in the root folder).
+    const folderPath = parts.join("/"); // e.g., "section 1" or "section 1/section 2"
+
+    // Determine the parent folder ID where this file should be uploaded.
+    let parentFolderId = rootFolderId;
+    if (folderPath) {
+      // If we haven't already created the folder for this relative path, create it.
+      if (!folderMap[folderPath]) {
+        // Split the folderPath and create each folder level if needed.
+        let currentPath = "";
+        let currentParentId = rootFolderId;
+        for (const folderName of folderPath.split("/")) {
+          currentPath = currentPath
+            ? currentPath + "/" + folderName
+            : folderName;
+          // If this level doesn't exist in our mapping, create it.
+          if (!folderMap[currentPath]) {
+            try {
+              const newFolderId = await createDriveFolder(
+                folderName,
+                currentParentId
+              );
+              folderMap[currentPath] = newFolderId;
+              currentParentId = newFolderId;
+            } catch (err) {
+              console.error("Error creating folder", folderName, err);
+            }
+          } else {
+            currentParentId = folderMap[currentPath];
+          }
+        }
+        parentFolderId = currentParentId;
+      } else {
+        parentFolderId = folderMap[folderPath];
+      }
+    }
+
+    // Upload the file into its designated parent folder.
+    try {
+      const fileData = await uploadFileToFolder(file, parentFolderId);
+      console.log(
+        "Uploaded file:",
+        file.name,
+        "with ID:",
+        fileData.id,
+        "under folder:",
+        folderPath
+      );
+    } catch (err) {
+      console.error("Error uploading file", file.name, err);
+    }
+  }
+
+  alert("Folder upload complete!");
+}
 
 // --- Attach Event Listeners on Window Load ---
 window.addEventListener("load", () => {
-  // Initialize Google Identity Services.
   loadGoogleAPI();
-  
-  // Attach the upload handler to the upload button.
-  const uploadButton = document.getElementById("uploadButton");
-  if (uploadButton) {
-    uploadButton.addEventListener("click", handleUpload);
+
+  const uploadFolderButton = document.getElementById("uploadFolderButton");
+  if (uploadFolderButton) {
+    uploadFolderButton.addEventListener("click", async () => {
+      // Request access token if not available.
+      if (!accessToken) {
+        await requestAccessToken();
+      }
+      handleFolderUpload();
+    });
   } else {
-    console.warn("Upload button not found. Ensure an element with id 'uploadButton' exists.");
+    console.warn(
+      "Upload folder button not found. Ensure an element with id 'uploadFolderButton' exists."
+    );
   }
 });
