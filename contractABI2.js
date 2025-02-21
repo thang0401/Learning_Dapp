@@ -1,4 +1,4 @@
-contractABI2 = [
+contractABI2  = [
 	{
 		"inputs": [
 			{
