@@ -15,7 +15,7 @@
     <!-- Load Google API (if needed) -->
     <script src="https://apis.google.com/js/api.js" defer></script>
     <!-- Load your custom script for folder upload -->
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style1.css" />
   </head>
   <body>
     <h1>E-Learning Platform</h1>
@@ -34,7 +34,7 @@
         <label>Created folder id:</label>
         <button id="createFolderButton">Create Folder</button>
         <span id="createdFolderLink"></span>
-
+<br>
         <label>Duration:</label>
         <input type="text" id="duration" required /><br />
 
@@ -57,20 +57,53 @@
           <!-- Series sẽ được thêm vào đây -->
         </div>
 
-        <button type="button" onclick="addSeries()">➕ Add Series</button>
-
+        <button style="margin: 10px;" type="button" onclick="addSeries()">➕ Add Series</button>
+        <br>
         <button type="submit">Create Course</button>
       </form>
     </section>
 
     <section>
+      <h2>Available Courses</h2>
+      <div id="coursesList"></div>
+    </section>
+    
+
+      <section>
+        <h2>Purchased Courses</h2>
+        <button onclick="loadPurchasedCourses()">Load My Purchased Courses</button>
+        <div id="purchasedCoursesList"></div>
+    </section>
+    
+    <section>
+        <h2>Transaction History</h2>
+        <input type="text" id="courseIdInput" placeholder="Enter Course ID">
+        <button onclick="loadTransactionsByCourse()">Get Transactions</button>
+        <div id="transactionsByCourseList"></div>
+    </section>
+    
+    <section>
+        <h2>All Transactions</h2>
+        <button onclick="loadAllTransactions()">Load All Transactions</button>
+        <div id="allTransactionsList"></div>
+    </section>
+    
+    <section>
+        <h2>All Students</h2>
+        <button onclick="loadAllStudents()">Load All Students</button>
+        <div id="allStudentsList"></div>
+    </section>
+
+    
+    <section>
       <h2>get course detail</h2>
-      <input type="text" id="courseIdInput" placeholder="Enter Course ID" />
+      <input type="text" id="getCourseIdDetailInput" placeholder="Enter Course ID" />
       <button
-        onclick="getFullCourseDetails(document.getElementById('courseIdInput').value)"
+        onclick="getFullCourseDetails(document.getElementById('getCourseIdDetailInput').value)"
       >
         Get Course Details
       </button>
+    
 
       <div id="courseDetails"></div>
     </section>

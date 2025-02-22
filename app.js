@@ -145,7 +145,7 @@ async function checkCoursePrice(courseId) {
 }
 
 // Unicode-safe Base64 Encode/Decode
-function encodeBase64(input) {
+function encodeBase644(input) {
     return btoa(unescape(encodeURIComponent(input)));
 }
 

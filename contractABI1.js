@@ -1,4 +1,62 @@
-contractABI1 =[
+contractABI1 = [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "title",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "courseDetails",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "metadataURI",
+				"type": "string"
+			},
+			{
+				"internalType": "string",
+				"name": "duration",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "price",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string[]",
+				"name": "tagNames",
+				"type": "string[]"
+			},
+			{
+				"internalType": "string[]",
+				"name": "seriesTitles",
+				"type": "string[]"
+			},
+			{
+				"internalType": "string[]",
+				"name": "seriesDescriptions",
+				"type": "string[]"
+			},
+			{
+				"internalType": "string[][]",
+				"name": "lessonTitles",
+				"type": "string[][]"
+			},
+			{
+				"internalType": "string[][]",
+				"name": "lessonFiles",
+				"type": "string[][]"
+			}
+		],
+		"name": "createCourse",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
 	{
 		"inputs": [
 			{
@@ -127,6 +185,26 @@ contractABI1 =[
 		"type": "event"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "courseId",
+				"type": "uint256"
+			}
+		],
+		"name": "purchaseCourse",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "renounceOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -152,6 +230,19 @@ contractABI1 =[
 		"type": "event"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_platformWallet",
+				"type": "address"
+			}
+		],
+		"name": "setPlatformWallet",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"anonymous": false,
 		"inputs": [
 			{
@@ -169,6 +260,19 @@ contractABI1 =[
 		],
 		"name": "TagAdded",
 		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	},
 	{
 		"inputs": [
@@ -220,61 +324,46 @@ contractABI1 =[
 		"type": "function"
 	},
 	{
-		"inputs": [
+		"inputs": [],
+		"name": "getAllStudents",
+		"outputs": [
 			{
-				"internalType": "string",
-				"name": "title",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "courseDetails",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "metadataURI",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "duration",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "price",
-				"type": "uint256"
-			},
-			{
-				"internalType": "string[]",
-				"name": "tagNames",
-				"type": "string[]"
-			},
-			{
-				"internalType": "string[]",
-				"name": "seriesTitles",
-				"type": "string[]"
-			},
-			{
-				"internalType": "string[]",
-				"name": "seriesDescriptions",
-				"type": "string[]"
-			},
-			{
-				"internalType": "string[][]",
-				"name": "lessonTitles",
-				"type": "string[][]"
-			},
-			{
-				"internalType": "string[][]",
-				"name": "lessonFiles",
-				"type": "string[][]"
+				"internalType": "address[]",
+				"name": "",
+				"type": "address[]"
 			}
 		],
-		"name": "createCourse",
-		"outputs": [],
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getAllTransactions",
+		"outputs": [
+			{
+				"components": [
+					{
+						"internalType": "address",
+						"name": "buyer",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "courseId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "timestamp",
+						"type": "uint256"
+					}
+				],
+				"internalType": "struct ELearning.Transaction[]",
+				"name": "",
+				"type": "tuple[]"
+			}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -402,6 +491,19 @@ contractABI1 =[
 				"internalType": "uint256[]",
 				"name": "",
 				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "getTotalCourses",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
@@ -545,19 +647,6 @@ contractABI1 =[
 	{
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "courseId",
-				"type": "uint256"
-			}
-		],
-		"name": "purchaseCourse",
-		"outputs": [],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
 				"internalType": "address",
 				"name": "",
 				"type": "address"
@@ -577,13 +666,6 @@ contractABI1 =[
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "renounceOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -618,19 +700,6 @@ contractABI1 =[
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_platformWallet",
-				"type": "address"
-			}
-		],
-		"name": "setPlatformWallet",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -728,19 +797,6 @@ contractABI1 =[
 			}
 		],
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
-		"name": "transferOwnership",
-		"outputs": [],
-		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]

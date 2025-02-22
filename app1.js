@@ -1,4 +1,4 @@
-const contractAddress = "0xf480ddc6048c7554c30ba2d411d822c9dd101218";
+const contractAddress = "0x50ec856d0f98855daa2c72199d718af60d023415";
 let contract;
 let currentAccount;
 
@@ -34,48 +34,43 @@ async function createCourse(event) {
 
   console.log(`💰 Converted Price: ${price} Wei`);
 
-  // ✅ Lấy metadataURI từ Google Drive Folder
-  const metadataURI = createdFolderId
-    ? `https://drive.google.com/drive/folders/${createdFolderId}`
-    : "";
-
-  console.log("🔗 metadataURI:", metadataURI);
-
-  // ✅ Get Tags
+  // ✅ Lấy danh sách Tags
   const tags = Array.from(document.querySelectorAll("#tagList li")).map(
     (li) => li.firstChild.textContent
   );
 
-  // ✅ Get Series and Lessons
-  const seriesTitles = [];
-  const seriesDescriptions = [];
-  const lessonTitles = [];
-  const lessonFiles = [];
+  // ✅ Chỉ Mã Hóa URL của Thư Mục Gốc (metadataURI)
+  const metadataURI = createdFolderId
+    ? encodeBase64(`https://drive.google.com/drive/folders/${createdFolderId}`)
+    : "";
 
-  document.querySelectorAll(".series").forEach((seriesDiv, seriesIndex) => {
-    const titleInput = seriesDiv.querySelector(".series-title");
-    const descInput = seriesDiv.querySelector(".series-description");
+  console.log("🔐 Encrypted metadataURI:", metadataURI);
 
-    const title = titleInput ? titleInput.value.trim() : "";
-    const desc = descInput ? descInput.value.trim() : "";
+  // ✅ Lưu danh sách Series và Lessons vào blockchain (Không mã hóa lessonUrl)
+  let seriesTitles = [];
+  let seriesDescriptions = [];
+  let lessonTitles = [];
+  let lessonFiles = [];
 
-    seriesTitles.push(title);
-    seriesDescriptions.push(desc);
+  document.querySelectorAll(".series").forEach((seriesDiv) => {
+    const seriesTitle = seriesDiv.querySelector(".series-title").value.trim();
+    const seriesDescription = seriesDiv
+      .querySelector(".series-description")
+      .value.trim();
 
-    const lessonTitleList = [];
-    const lessonFileList = [];
+    seriesTitles.push(seriesTitle);
+    seriesDescriptions.push(seriesDescription);
+
+    let lessonTitleList = [];
+    let lessonFileList = [];
 
     seriesDiv.querySelectorAll(".lesson").forEach((lesson) => {
-      const lessonTitleInput = lesson.querySelector("input[type='text']");
-      const lessonTitle = lessonTitleInput ? lessonTitleInput.value.trim() : "";
+      const lessonTitle = lesson.querySelector(".lesson-title").value.trim();
+      let lessonUrl = lesson.dataset.driveUrl || "";
 
-      const lessonDriveUrl = lesson.dataset.driveUrl || ""; // 📌 Kiểm tra giá trị URL
-
-      console.log(`🔗 Lesson "${lessonTitle}" - Drive URL:`, lessonDriveUrl);
-
-      if (lessonTitle) {
+      if (lessonTitle && lessonUrl) {
         lessonTitleList.push(lessonTitle);
-        lessonFileList.push(lessonDriveUrl);
+        lessonFileList.push(lessonUrl); // ❌ Không mã hóa lessonUrl
       }
     });
 
@@ -86,7 +81,7 @@ async function createCourse(event) {
   console.log("📚 Prepared Course Data:");
   console.log("Title:", title);
   console.log("Details:", details);
-  console.log("Metadata URI:", metadataURI);
+  console.log("Encrypted Metadata URI:", metadataURI);
   console.log("Duration:", duration);
   console.log("Price:", price);
   console.log("Tags:", tags);
@@ -100,22 +95,24 @@ async function createCourse(event) {
       .createCourse(
         title,
         details,
-        metadataURI, // ✅ Truyền Google Drive Folder URL vào đây
+        metadataURI, // ✅ Lưu URL thư mục gốc đã mã hóa vào blockchain
         duration,
         price,
         tags,
         seriesTitles,
         seriesDescriptions,
         lessonTitles,
-        lessonFiles
+        lessonFiles // ✅ Lưu lessonUrl nguyên bản, không mã hóa
       )
       .send({ from: currentAccount });
-
+      await loadCourses();
     alert("🎉 Course Created Successfully!");
   } catch (error) {
     console.error("❌ Error creating course:", error);
   }
 }
+
+
 
 // ✅ Function để thêm Tags vào danh sách
 function addTag() {
@@ -192,7 +189,7 @@ function addSeries() {
   seriesContainer.appendChild(seriesDiv);
 }
 
-function createLessonComponent() {
+function createLessonComponent(seriesId) {
   const lessonDiv = document.createElement("div");
   lessonDiv.classList.add("lesson");
 
@@ -205,42 +202,34 @@ function createLessonComponent() {
   lessonFileInput.type = "file";
   lessonFileInput.classList.add("lesson-file");
 
-  let driveFileUrl = "";
+  let lessonFileUrl = "";
 
   lessonFileInput.onchange = async (event) => {
-    const file = event.target.files[0]; // ✅ Chỉ lấy file đầu tiên
+    const file = event.target.files[0]; // ✅ Chỉ lấy 1 file
     if (!file) return;
 
     if (!accessToken) {
       await requestAccessToken();
     }
 
-    if (!createdFolderId) {
-      alert("❌ Please create a Course Folder first!");
-      return;
-    }
-
     try {
-      const uploadedFile = await uploadFileToDrive(file);
-      driveFileUrl = `https://drive.google.com/uc?id=${uploadedFile.id}`;
+      lessonFileUrl = await uploadFileToDrive(file); // ✅ Upload file lên Google Drive
+      lessonDiv.dataset.driveUrl = encodeBase64(lessonFileUrl); // ✅ Mã hóa URL trước khi lưu
 
-      // ✅ Lưu URL file vào dataset
-      lessonDiv.dataset.driveUrl = driveFileUrl;
-      console.log("📌 Updated lessonDiv.dataset.driveUrl:", driveFileUrl);
-
-      // 🔗 Hiển thị link file
+      // ✅ Hiển thị link của file vừa upload
       const fileLink = document.createElement("a");
-      fileLink.href = driveFileUrl;
+      fileLink.href = lessonFileUrl;
       fileLink.target = "_blank";
-      fileLink.textContent = "📄 View Uploaded File";
+      fileLink.textContent = "📂 View Uploaded File";
       lessonDiv.appendChild(fileLink);
+
+      console.log(`✅ Lesson file uploaded: ${lessonFileUrl}`);
     } catch (error) {
-      console.error("❌ Error uploading file:", error);
-      alert("❌ File upload failed!");
+      console.error("❌ File upload failed:", error);
+      alert("❌ Lesson upload failed!");
     }
   };
 
-  // ✅ Nút xóa Lesson
   const removeLessonBtn = document.createElement("button");
   removeLessonBtn.textContent = "❌ Remove";
   removeLessonBtn.onclick = () => lessonDiv.remove();
@@ -296,98 +285,150 @@ document.addEventListener("DOMContentLoaded", async () => {
   const form = document.getElementById("createCourseForm");
   if (form) form.addEventListener("submit", createCourse);
 });
-
 async function getFullCourseDetails(courseId) {
   try {
-    console.log(`🔍 Fetching details for Course ID: ${courseId}`);
+      console.log(`🔍 Fetching details for Course ID: ${courseId}`);
 
-    // ✅ Fetch Basic Info
-    const courseInfo = await contract.methods
-      .getCourseBasicInfo(courseId)
-      .call();
-    console.log(`📚 Course ${courseId} Basic Info:`, courseInfo);
-
-    const title = courseInfo[0];
-    const details = courseInfo[1];
-    const metadataURI = courseInfo[2]; // ✅ Link Google Drive của khóa học
-
-    const rawPrice = courseInfo[3];
-    const duration = courseInfo[4];
-    const students = courseInfo[5];
-
-    let price = "0";
-    if (rawPrice && rawPrice !== "" && rawPrice !== "0") {
-      price = web3.utils.fromWei(rawPrice, "ether");
-    }
-
-    // ✅ Fetch Tags
-    const tags = await contract.methods.getCourseTags(courseId).call();
-    console.log(`🏷️ Tags:`, tags);
-
-    // ✅ Fetch Series
-    const seriesData = await contract.methods.getCourseSeries(courseId).call();
-    console.log(`📚 Series Titles:`, seriesData[0]);
-    console.log(`📖 Series Descriptions:`, seriesData[1]);
-
-    const seriesTitles = seriesData[0] || [];
-    const seriesDescriptions = seriesData[1] || [];
-
-    // ✅ Fetch Lessons
-    const lessonsData = await contract.methods
-      .getCourseLessons(courseId)
-      .call();
-    console.log(`📘 Lessons Titles:`, lessonsData[0]);
-    console.log(`📂 Lesson Files:`, lessonsData[1]);
-
-    const lessonTitles = lessonsData[0] || [];
-    const lessonFiles = lessonsData[1] || [];
-
-    // ✅ Construct Series & Lessons HTML
-    let seriesHTML = "<h3>Series</h3><ul>";
-    for (let i = 0; i < seriesTitles.length; i++) {
-      seriesHTML += `<li><strong>${seriesTitles[i]}</strong>: ${
-        seriesDescriptions[i] || "No description"
-      }</li>`;
-
-      if (lessonTitles[i] && lessonTitles[i].length > 0) {
-        seriesHTML += "<ul>";
-        for (let j = 0; j < lessonTitles[i].length; j++) {
-          const lessonDriveUrl = lessonFiles[i][j] || "";
-          const lessonLink = lessonDriveUrl
-            ? `<a href="${lessonDriveUrl}" target="_blank">📂 View Google Drive Folder</a>`
-            : "<span style='color:red;'>❌ No file available</span>";
-          seriesHTML += `<li>Lesson: ${lessonTitles[i][j]} - ${lessonLink}</li>`;
-        }
-        seriesHTML += "</ul>";
-      } else {
-        seriesHTML += "<p>No lessons available.</p>";
+      if (!courseId || isNaN(courseId)) {
+          alert("❌ Invalid Course ID!");
+          return;
       }
-    }
-    seriesHTML += "</ul>";
 
-    // ✅ Construct Tags HTML
-    let tagsHTML = "<h3>Skills</h3><p>";
-    tagsHTML += tags.length > 0 ? tags.join(", ") : "No skills added.";
-    tagsHTML += "</p>";
+      // ✅ Fetch Basic Info
+      const courseInfo = await contract.methods.getCourseBasicInfo(courseId).call();
+      console.log(`📚 Course ${courseId} Basic Info:`, courseInfo);
 
-    // ✅ Display All Course Information
-    document.getElementById("courseDetails").innerHTML = `
-            <h2>${title}</h2>
-            <p><strong>Details:</strong> ${details}</p>
-            <p><strong>Price:</strong> ${price} BNB</p>
-            <p><strong>Duration:</strong> ${duration}</p>
-            <p><strong>Students Enrolled:</strong> ${students}</p>
-            ${tagsHTML}
-            ${seriesHTML}
-            <p><strong>Course Drive Folder:</strong> <a href="${metadataURI}" target="_blank">📂 View Course Folder</a></p>
-        `;
+      if (!courseInfo || courseInfo.length === 0) {
+          throw new Error("❌ No data found for this course.");
+      }
+
+      const title = courseInfo[0];
+      const details = courseInfo[1];
+      let metadataURI = courseInfo[2];
+
+      let rawPrice = courseInfo[3]; // ✅ Kiểm tra dữ liệu trả về
+      console.log("💰 Raw Price from Contract:", rawPrice);
+
+      const duration = courseInfo[4];
+      const students = courseInfo[5];
+
+      let price = "0";
+      if (rawPrice && rawPrice !== "" && rawPrice !== "0") {
+          try {
+              price = web3.utils.fromWei(rawPrice, "ether");
+          } catch (error) {
+              console.error("❌ Error converting price:", error);
+              price = "Invalid Price";
+          }
+      } else {
+          console.warn("⚠️ Warning: Price is empty or invalid.");
+      }
+
+      // ✅ Giải mã metadataURI trước khi hiển thị
+      metadataURI = metadataURI ? decodeBase64(metadataURI) : "";
+      console.log("🔓 Decoded metadataURI:", metadataURI);
+
+      // ✅ Fetch Tags
+      const tags = await contract.methods.getCourseTags(courseId).call();
+      console.log(`🏷️ Tags:`, tags);
+
+      // ✅ Fetch Series
+      const seriesData = await contract.methods.getCourseSeries(courseId).call();
+      console.log(`📚 Series Titles:`, seriesData[0]);
+      console.log(`📖 Series Descriptions:`, seriesData[1]);
+
+      const seriesTitles = seriesData[0] || [];
+      const seriesDescriptions = seriesData[1] || [];
+
+      // ✅ Fetch Lessons
+      const lessonsData = await contract.methods.getCourseLessons(courseId).call();
+      console.log(`📘 Lessons Titles:`, lessonsData[0]);
+      console.log(`📂 Lesson Files (Encoded):`, lessonsData[1]);
+
+      const lessonTitles = lessonsData[0] || [];
+      const lessonFiles = lessonsData[1] || [];
+
+      // ✅ Giải mã lesson URL trước khi hiển thị
+      // for (let i = 0; i < lessonFiles.length; i++) {
+      //     for (let j = 0; j < lessonFiles[i].length; j++) {
+      //         if (lessonFiles[i][j]) {
+      //             try {
+      //                 lessonFiles[i][j] = decodeBase64(lessonFiles[i][j]);
+      //             } catch (error) {
+      //                 console.error(`❌ Error decoding lesson URL at [${i}][${j}]:`, error);
+      //                 lessonFiles[i][j] = "Invalid URL";
+      //             }
+      //         }
+      //     }
+      // }
+
+      // console.log("🔓 Decoded Lesson Files:", lessonFiles);
+
+      // ✅ Construct Series & Lessons HTML
+      let seriesHTML = "<h3>Series</h3><ul>";
+      for (let i = 0; i < seriesTitles.length; i++) {
+          seriesHTML += `<li><strong>${seriesTitles[i]}</strong>: ${
+              seriesDescriptions[i] || "<span style='color:gray;'>No description</span>"
+          }</li>`;
+
+          if (lessonTitles[i] && lessonTitles[i].length > 0) {
+              seriesHTML += "<ul>";
+              for (let j = 0; j < lessonTitles[i].length; j++) {
+                  const lessonDriveUrl = lessonFiles[i][j] || "";
+                  const lessonLink = lessonDriveUrl
+                      ? `<a href="${lessonDriveUrl}" target="_blank">📂 View Lesson File</a>`
+                      : "<span style='color:red;'>❌ No file available</span>";
+                  seriesHTML += `<li>Lesson: <strong>${lessonTitles[i][j]}</strong> - ${lessonLink}</li>`;
+              }
+              seriesHTML += "</ul>";
+          } else {
+              seriesHTML += "<p style='color:gray;'>No lessons available.</p>";
+          }
+      }
+      seriesHTML += "</ul>";
+
+      // ✅ Construct Tags HTML
+      let tagsHTML = "<h3>Skills</h3><p>";
+      tagsHTML += tags.length > 0 ? tags.join(", ") : "No skills added.";
+      tagsHTML += "</p>";
+
+      // ✅ Display All Course Information
+      document.getElementById("courseDetails").innerHTML = `
+          <h2>${title}</h2>
+          <p><strong>Details:</strong> ${details}</p>
+          <p><strong>Price:</strong> ${price} BNB</p>
+          <p><strong>Duration:</strong> ${duration}</p>
+          <p><strong>Students Enrolled:</strong> ${students}</p>
+          ${tagsHTML}
+          ${seriesHTML}
+          <p><strong>Course Drive Folder:</strong> <a href="${metadataURI}" target="_blank">📂 View Course Folder</a></p>
+      `;
+
   } catch (error) {
-    console.error("❌ Error fetching course details:", error);
-    alert(
-      "Failed to fetch course details. Check the console for more information."
-    );
+      console.error("❌ Error fetching course details:", error);
+      alert("Failed to fetch course details. Check the console for more information.");
   }
 }
+
+
+
+
+/// mã hoá
+// ✅ Hàm mã hóa URL bằng Base64
+// ✅ Mã hóa đúng (dùng encodeURIComponent để tránh lỗi ký tự đặc biệt)
+
+function encodeBase64(input) {
+  return btoa(unescape(encodeURIComponent(input)));
+}
+
+// ✅ Giải mã đúng (tránh lỗi encoding)
+function decodeBase64(input) {
+  return decodeURIComponent(escape(atob(input)));
+}
+
+
+
+
 
 
 // --- Configuration for Google API ---
@@ -465,27 +506,28 @@ async function createDriveFolder(folderName) {
 
 // --- Xử lý khi bấm nút "Create Folder" ---
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("createFolderButton").addEventListener("click", async () => {
-    try {
-      const folderName = "Course Folder " + new Date().toISOString();
-      createdFolderId = await createDriveFolder(folderName); // ✅ Tạo thư mục gốc
+  document
+    .getElementById("createFolderButton")
+    .addEventListener("click", async () => {
+      try {
+        const folderName = "Course Folder " + new Date().toISOString();
+        createdFolderId = await createDriveFolder(folderName); // ✅ Tạo thư mục gốc
 
-      // ✅ Lưu link vào metadataURI
-      metadataURI = `https://drive.google.com/drive/folders/${createdFolderId}`;
+        // ✅ Lưu link vào metadataURI
+        metadataURI = `https://drive.google.com/drive/folders/${createdFolderId}`;
 
-      // ✅ Hiển thị link thư mục gốc trên UI
-      document.getElementById("createdFolderLink").innerHTML = `
+        // ✅ Hiển thị link thư mục gốc trên UI
+        document.getElementById("createdFolderLink").innerHTML = `
         <a href="${metadataURI}" target="_blank">📂 View Course Folder</a>
       `;
 
-      console.log("✅ Created Course Folder ID:", createdFolderId);
-    } catch (error) {
-      console.error("❌ Error creating folder:", error);
-      alert("Failed to create folder!");
-    }
-  });
+        console.log("✅ Created Course Folder ID:", createdFolderId);
+      } catch (error) {
+        console.error("❌ Error creating folder:", error);
+        alert("Failed to create folder!");
+      }
+    });
 });
-
 
 async function uploadFileToDrive(file) {
   if (!createdFolderId) {
@@ -496,47 +538,207 @@ async function uploadFileToDrive(file) {
   const metadata = {
     name: file.name,
     mimeType: file.type,
-    parents: [createdFolderId], // ✅ Upload vào thư mục gốc
+    parents: [createdFolderId], // ✅ Upload vào thư mục gốc (Course Folder)
   };
 
   const formData = new FormData();
-  formData.append(
-    "metadata",
-    new Blob([JSON.stringify(metadata)], { type: "application/json" })
-  );
+  formData.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
   formData.append("file", file);
 
-  const response = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      body: formData,
-    }
-  );
+  const response = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData,
+  });
 
   if (!response.ok) {
-    throw new Error("❌ File upload failed: " + response.status);
+    console.error("❌ File upload failed:", await response.json());
+    throw new Error("File upload failed");
   }
 
   const fileData = await response.json();
 
   // ✅ Gán quyền public để ai cũng có thể xem file
-  await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ role: "reader", type: "anyone" }),
-    }
-  );
+  await fetch(`https://www.googleapis.com/drive/v3/files/${fileData.id}/permissions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ role: "reader", type: "anyone" }),
+  });
 
   console.log(`✅ Uploaded file: ${file.name} to folder: ${createdFolderId}`);
-  return fileData;
+  return `https://drive.google.com/file/d/${fileData.id}/view`; // ✅ Trả về URL có thể truy cập công khai
 }
 
 // --- Khởi động Google API khi trang load ---
 window.addEventListener("load", loadGoogleAPI);
+
+
+
+//// purchaseCourse
+async function loadCourses() {
+  if (!window.ethereum) {
+      alert("Please install MetaMask to use this feature.");
+      return;
+  }
+
+  const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+  const userAddress = accounts[0];
+
+  const totalCourses = await contract.methods.getTotalCourses().call();
+  const coursesListDiv = document.getElementById("coursesList");
+  coursesListDiv.innerHTML = "";
+
+  for (let i = 1; i <= totalCourses; i++) {
+      const course = await contract.methods.courses(i).call();
+
+      if (course.id > 0) {
+          const courseElement = document.createElement("div");
+          courseElement.className = "course-item";
+          courseElement.innerHTML = `
+              <h3>${course.title}</h3>
+              <p><strong>Details:</strong> ${course.details}</p>
+              <p><strong>Duration:</strong> ${course.duration} hours</p>
+              <p><strong>Price:</strong> ${web3.utils.fromWei(course.price, 'ether')} BNB</p>
+              <p><strong>Students Enrolled:</strong> ${course.students}</p>
+              <button onclick="purchaseCourse(${course.id}, ${course.price})">Purchase</button>
+          `;
+          coursesListDiv.appendChild(courseElement);
+      }
+  }
+}
+
+async function purchaseCourse(courseId, price) {
+  try {
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      const userAddress = accounts[0];
+
+      await contract.methods.purchaseCourse(courseId).send({
+          from: userAddress,
+          value: price
+      });
+
+      alert("Purchase successful!");
+      loadCourses();  // Reload to update student count
+  } catch (error) {
+      console.error("Purchase failed", error);
+      alert("Purchase failed: " + error.message);
+  }
+}
+
+// Load courses on page load
+window.onload = loadCourses;
+
+async function loadPurchasedCourses() {
+  if (!currentAccount) {
+      alert("❌ Please connect your wallet first!");
+      return;
+  }
+
+  try {
+      const purchasedCourses = await contract.methods.getPurchasedCourses(currentAccount).call();
+      const container = document.getElementById("purchasedCoursesList");
+      container.innerHTML = "<h3>My Purchased Courses:</h3>";
+
+      if (purchasedCourses.length === 0) {
+          container.innerHTML += "<p>No purchased courses.</p>";
+          return;
+      }
+
+      let courseListHTML = "<ul>";
+      for (let i = 0; i < purchasedCourses.length; i++) {
+          let courseId = purchasedCourses[i];
+          let courseInfo = await contract.methods.getCourseBasicInfo(courseId).call();
+          courseListHTML += `<li><strong>${courseInfo[0]}</strong> - ${web3.utils.fromWei(courseInfo[3], "ether")} BNB</li>`;
+      }
+      courseListHTML += "</ul>";
+      container.innerHTML += courseListHTML;
+
+  } catch (error) {
+      console.error("❌ Error fetching purchased courses:", error);
+  }
+}
+
+
+async function loadTransactionsByCourse() {
+  const courseId = document.getElementById("courseIdInput").value.trim();
+  if (!courseId) {
+      alert("❌ Please enter a valid Course ID!");
+      return;
+  }
+
+  try {
+      const transactions = await contract.methods.getTransactionsByCourseId(courseId).call();
+      const container = document.getElementById("transactionsByCourseList");
+      container.innerHTML = `<h3>Transactions for Course ID: ${courseId}</h3>`;
+
+      if (transactions.length === 0) {
+          container.innerHTML += "<p>No transactions found.</p>";
+          return;
+      }
+
+      let transactionListHTML = "<ul>";
+      for (let i = 0; i < transactions.length; i++) {
+          let tx = transactions[i];
+          let date = new Date(tx.timestamp * 1000).toLocaleString();
+          transactionListHTML += `<li>Buyer: ${tx.buyer} | Time: ${date}</li>`;
+      }
+      transactionListHTML += "</ul>";
+      container.innerHTML += transactionListHTML;
+
+  } catch (error) {
+      console.error("❌ Error fetching transactions:", error);
+  }
+}
+
+
+async function loadAllTransactions() {
+  try {
+      const transactions = await contract.methods.getAllTransactions().call();
+      const container = document.getElementById("allTransactionsList");
+      container.innerHTML = "<h3>All Transactions</h3>";
+
+      if (transactions.length === 0) {
+          container.innerHTML += "<p>No transactions available.</p>";
+          return;
+      }
+
+      let transactionListHTML = "<ul>";
+      for (let i = 0; i < transactions.length; i++) {
+          let tx = transactions[i];
+          let date = new Date(tx.timestamp * 1000).toLocaleString();
+          transactionListHTML += `<li>Buyer: ${tx.buyer} | Course ID: ${tx.courseId} | Time: ${date}</li>`;
+      }
+      transactionListHTML += "</ul>";
+      container.innerHTML += transactionListHTML;
+
+  } catch (error) {
+      console.error("❌ Error fetching all transactions:", error);
+  }
+}
+
+
+async function loadAllStudents() {
+  try {
+      const students = await contract.methods.getAllStudents().call();
+      const container = document.getElementById("allStudentsList");
+      container.innerHTML = "<h3>All Students</h3>";
+
+      if (students.length === 0) {
+          container.innerHTML += "<p>No students found.</p>";
+          return;
+      }
+
+      let studentListHTML = "<ul>";
+      for (let i = 0; i < students.length; i++) {
+          studentListHTML += `<li>${students[i]}</li>`;
+      }
+      studentListHTML += "</ul>";
+      container.innerHTML += studentListHTML;
+
+  } catch (error) {
+      console.error("❌ Error fetching all students:", error);
+  }
+}

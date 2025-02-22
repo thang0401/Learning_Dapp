@@ -2,6 +2,7 @@
   "dependencies": {
     "crypto": "^1.0.1",
     "fs": "^0.0.1-security",
-    "googleapis": "^144.0.0"
+    "googleapis": "^144.0.0",
+    "js-base64": "^3.7.7"
   }
 }
