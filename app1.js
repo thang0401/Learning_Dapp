@@ -192,7 +192,7 @@ function addSeries() {
   seriesContainer.appendChild(seriesDiv);
 }
 
-function createLessonComponent(seriesId) {
+function createLessonComponent() {
   const lessonDiv = document.createElement("div");
   lessonDiv.classList.add("lesson");
 
@@ -201,97 +201,57 @@ function createLessonComponent(seriesId) {
   lessonTitleInput.classList.add("lesson-title");
   lessonTitleInput.placeholder = "Enter lesson title";
 
-  const lessonFolderInput = document.createElement("input");
-  lessonFolderInput.type = "file";
-  lessonFolderInput.classList.add("lesson-folder");
-  lessonFolderInput.webkitdirectory = true;
+  const lessonFileInput = document.createElement("input");
+  lessonFileInput.type = "file";
+  lessonFileInput.classList.add("lesson-file");
 
-  // 🏷️ Thêm biến để lưu URL Drive
-  let driveFolderUrl = "";
+  let driveFileUrl = "";
 
-  lessonFolderInput.onchange = async (event) => {
-    const files = event.target.files;
-    if (!files.length) return;
+  lessonFileInput.onchange = async (event) => {
+    const file = event.target.files[0]; // ✅ Chỉ lấy file đầu tiên
+    if (!file) return;
 
     if (!accessToken) {
       await requestAccessToken();
     }
 
+    if (!createdFolderId) {
+      alert("❌ Please create a Course Folder first!");
+      return;
+    }
+
     try {
-      const folderName = "Lesson - " + lessonTitleInput.value.trim();
-      const folderId = await createDriveFolder(folderName, "root");
+      const uploadedFile = await uploadFileToDrive(file);
+      driveFileUrl = `https://drive.google.com/uc?id=${uploadedFile.id}`;
 
-      // ✅ Cập nhật URL sau khi tạo thư mục thành công
-      driveFolderUrl = `https://drive.google.com/drive/folders/${folderId}`;
-      lessonDiv.dataset.driveUrl = driveFolderUrl; // ✅ Gán vào dataset
+      // ✅ Lưu URL file vào dataset
+      lessonDiv.dataset.driveUrl = driveFileUrl;
+      console.log("📌 Updated lessonDiv.dataset.driveUrl:", driveFileUrl);
 
-      console.log(`📂 Created folder: ${driveFolderUrl}`);
-
-      // 🔗 Hiển thị link thư mục
-      const folderLink = document.createElement("a");
-      folderLink.href = driveFolderUrl;
-      folderLink.target = "_blank";
-      folderLink.textContent = "📂 View Uploaded Folder";
-      lessonDiv.appendChild(folderLink);
-
-      const folderMap = { "": folderId };
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const relativePath = file.webkitRelativePath;
-        const parts = relativePath.split("/");
-        const fileName = parts.pop();
-        const folderPath = parts.join("/");
-
-        let parentFolderId = folderId;
-        if (folderPath) {
-          if (!folderMap[folderPath]) {
-            let currentPath = "";
-            let currentParentId = folderId;
-
-            for (const folderName of folderPath.split("/")) {
-              currentPath = currentPath
-                ? currentPath + "/" + folderName
-                : folderName;
-              if (!folderMap[currentPath]) {
-                const newFolderId = await createDriveFolder(
-                  folderName,
-                  currentParentId
-                );
-                folderMap[currentPath] = newFolderId;
-                currentParentId = newFolderId;
-              } else {
-                currentParentId = folderMap[currentPath];
-              }
-            }
-            parentFolderId = currentParentId;
-          } else {
-            parentFolderId = folderMap[folderPath];
-          }
-        }
-
-        await uploadFileToFolder(file, parentFolderId);
-      }
-
-      console.log(`✅ Folder uploaded successfully!`);
-      alert(`Folder uploaded successfully! Lesson URL: ${driveFolderUrl}`);
+      // 🔗 Hiển thị link file
+      const fileLink = document.createElement("a");
+      fileLink.href = driveFileUrl;
+      fileLink.target = "_blank";
+      fileLink.textContent = "📄 View Uploaded File";
+      lessonDiv.appendChild(fileLink);
     } catch (error) {
-      console.error("❌ Folder upload failed:", error);
-      alert("Folder upload failed! Check console for details.");
+      console.error("❌ Error uploading file:", error);
+      alert("❌ File upload failed!");
     }
   };
 
-  // ✅ Remove Lesson Button
+  // ✅ Nút xóa Lesson
   const removeLessonBtn = document.createElement("button");
   removeLessonBtn.textContent = "❌ Remove";
   removeLessonBtn.onclick = () => lessonDiv.remove();
 
   lessonDiv.appendChild(lessonTitleInput);
-  lessonDiv.appendChild(lessonFolderInput);
+  lessonDiv.appendChild(lessonFileInput);
   lessonDiv.appendChild(removeLessonBtn);
 
   return lessonDiv;
 }
+
 
 // ✅ Xóa Series
 function removeSeries(seriesId) {
@@ -505,40 +465,38 @@ async function createDriveFolder(folderName) {
 
 // --- Xử lý khi bấm nút "Create Folder" ---
 document.addEventListener("DOMContentLoaded", () => {
-  document
-    .getElementById("createFolderButton")
-    .addEventListener("click", async () => {
-      try {
-        const folderName = "Course Folder " + new Date().toISOString();
-        createdFolderId = await createDriveFolder(folderName); // Lưu lại Folder ID
+  document.getElementById("createFolderButton").addEventListener("click", async () => {
+    try {
+      const folderName = "Course Folder " + new Date().toISOString();
+      createdFolderId = await createDriveFolder(folderName); // ✅ Tạo thư mục gốc
 
-        // ✅ Lưu link vào metadataURI
-        metadataURI = `https://drive.google.com/drive/folders/${createdFolderId}`;
+      // ✅ Lưu link vào metadataURI
+      metadataURI = `https://drive.google.com/drive/folders/${createdFolderId}`;
 
-        // Hiển thị link thư mục Google Drive
-        document.getElementById("createdFolderLink").innerHTML = `
-        <a href="${metadataURI}" target="_blank">${createdFolderId}</a>
+      // ✅ Hiển thị link thư mục gốc trên UI
+      document.getElementById("createdFolderLink").innerHTML = `
+        <a href="${metadataURI}" target="_blank">📂 View Course Folder</a>
       `;
 
-        console.log("✅ Created Folder ID:", createdFolderId);
-        console.log("🔗 metadataURI set to:", metadataURI);
-      } catch (error) {
-        console.error("❌ Error creating folder:", error);
-        alert("Failed to create folder!");
-      }
-    });
+      console.log("✅ Created Course Folder ID:", createdFolderId);
+    } catch (error) {
+      console.error("❌ Error creating folder:", error);
+      alert("Failed to create folder!");
+    }
+  });
 });
 
-async function uploadFileToFolder(file) {
+
+async function uploadFileToDrive(file) {
   if (!createdFolderId) {
-    alert("Please create a folder first!"); // Bắt người dùng tạo thư mục trước khi upload
+    alert("❌ Please create a Course Folder first!");
     return;
   }
 
   const metadata = {
     name: file.name,
     mimeType: file.type,
-    parents: [createdFolderId], // ✅ Dùng Folder ID đã tạo
+    parents: [createdFolderId], // ✅ Upload vào thư mục gốc
   };
 
   const formData = new FormData();
@@ -558,7 +516,7 @@ async function uploadFileToFolder(file) {
   );
 
   if (!response.ok) {
-    throw new Error("File upload failed: " + response.status);
+    throw new Error("❌ File upload failed: " + response.status);
   }
 
   const fileData = await response.json();
@@ -576,7 +534,7 @@ async function uploadFileToFolder(file) {
     }
   );
 
-  console.log(`Uploaded file: ${file.name} to folder: ${createdFolderId}`);
+  console.log(`✅ Uploaded file: ${file.name} to folder: ${createdFolderId}`);
   return fileData;
 }
 
