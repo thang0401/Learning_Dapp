@@ -52,7 +52,9 @@ contract ELearning is Ownable {
 
     event CourseCreated(uint256 courseId, string title, uint256 price);
     event SeriesAdded(uint256 courseId, uint256 seriesId, string seriesTitle);
-    event LessonAdded(uint256 seriesId, uint256 lessonId, string lessonTitle, string fileUrl);
+    event LessonAdded(
+        uint256 seriesId, uint256 lessonId, string lessonTitle, string fileUrl
+    );
     event TagAdded(uint256 courseId, string tagName);
     event CoursePurchased(uint256 courseId, address indexed buyer);
 
@@ -80,7 +82,9 @@ contract ELearning is Ownable {
         require(price > 0, "Price must be greater than zero");
 
         uint256 courseId = nextCourseId++;
-        courses[courseId] = Course(courseId, title, courseDetails, metadataURI, price, duration, 0);
+        courses[courseId] = Course(
+            courseId, title, courseDetails, metadataURI, price, duration, 0
+        );
 
         // ✅ Lưu Tags
         for (uint256 i = 0; i < tagNames.length; i++) {
@@ -90,15 +94,21 @@ contract ELearning is Ownable {
 
         // ✅ Lưu Series & Lessons
         for (uint256 i = 0; i < seriesTitles.length; i++) {
-            uint256 seriesId = nextSeriesId++;  // ✅ Đảm bảo seriesId tăng đúng
-            seriesByCourse[courseId].push(Series(seriesId, seriesTitles[i], seriesDescriptions[i]));
+            uint256 seriesId = nextSeriesId++; // ✅ Đảm bảo seriesId tăng đúng
+            seriesByCourse[courseId].push(
+                Series(seriesId, seriesTitles[i], seriesDescriptions[i])
+            );
             emit SeriesAdded(courseId, seriesId, seriesTitles[i]);
 
             // ✅ Lưu Lessons vào từng Series
             for (uint256 j = 0; j < lessonTitles[i].length; j++) {
                 uint256 lessonId = nextLessonId++;
-                lessonsBySeries[seriesId].push(Lesson(seriesId, lessonTitles[i][j], lessonFiles[i][j]));
-                emit LessonAdded(seriesId, lessonId, lessonTitles[i][j], lessonFiles[i][j]);
+                lessonsBySeries[seriesId].push(
+                    Lesson(seriesId, lessonTitles[i][j], lessonFiles[i][j])
+                );
+                emit LessonAdded(
+                    seriesId, lessonId, lessonTitles[i][j], lessonFiles[i][j]
+                );
             }
         }
 
@@ -112,15 +122,19 @@ contract ELearning is Ownable {
 
         uint256[] storage userCourses = purchasedCourses[msg.sender];
         for (uint256 i = 0; i < userCourses.length; i++) {
-            require(userCourses[i] != courseId, "You have already purchased this course");
+            require(
+                userCourses[i] != courseId,
+                "You have already purchased this course"
+            );
         }
 
-        (bool sent, ) = payable(platformWallet).call{value: msg.value}("");
+        (bool sent,) = payable(platformWallet).call{value: msg.value}("");
         require(sent, "Payment failed");
 
         purchasedCourses[msg.sender].push(courseId);
 
-        Transaction memory newTransaction = Transaction(msg.sender, courseId, block.timestamp);
+        Transaction memory newTransaction =
+            Transaction(msg.sender, courseId, block.timestamp);
         transactionsByCourse[courseId].push(newTransaction);
         transactionsByUser[msg.sender].push(newTransaction);
 
@@ -130,44 +144,55 @@ contract ELearning is Ownable {
     }
 
     // ✅ Lấy danh sách khóa học đã mua
-    function getPurchasedCourses(address user) external view returns (uint256[] memory) {
+    function getPurchasedCourses(address user)
+        external
+        view
+        returns (uint256[] memory)
+    {
         return purchasedCourses[user];
     }
 
     // ✅ Lấy danh sách giao dịch của một khóa học
-    function getTransactionsByCourseId(uint256 courseId) external view returns (Transaction[] memory) {
+    function getTransactionsByCourseId(uint256 courseId)
+        external
+        view
+        returns (Transaction[] memory)
+    {
         return transactionsByCourse[courseId];
     }
 
     function getTotalCourses() external view returns (uint256) {
-    return nextCourseId - 1; // Vì courseId bắt đầu từ 1
-}
+        return nextCourseId - 1; // Vì courseId bắt đầu từ 1
+    }
 
-        function getAllTransactions() external view returns (Transaction[] memory) {
-            uint256 totalTx = 0;
+    function getAllTransactions()
+        external
+        view
+        returns (Transaction[] memory)
+    {
+        uint256 totalTx = 0;
 
-            // Tính tổng số giao dịch
-            for (uint256 i = 1; i < nextCourseId; i++) {
-                totalTx += transactionsByCourse[i].length;
-            }
-
-            // Tạo mảng chứa tất cả giao dịch
-            Transaction[] memory allTransactions = new Transaction[](totalTx);
-            uint256 index = 0;
-
-            // Lặp qua tất cả khóa học và thêm giao dịch vào mảng
-            for (uint256 i = 1; i < nextCourseId; i++) {
-                for (uint256 j = 0; j < transactionsByCourse[i].length; j++) {
-                    allTransactions[index] = transactionsByCourse[i][j];
-                    index++;
-                }
-            }
-
-            return allTransactions;
+        // Tính tổng số giao dịch
+        for (uint256 i = 1; i < nextCourseId; i++) {
+            totalTx += transactionsByCourse[i].length;
         }
 
+        // Tạo mảng chứa tất cả giao dịch
+        Transaction[] memory allTransactions = new Transaction[](totalTx);
+        uint256 index = 0;
 
-     function getAllStudents() external view returns (address[] memory) {
+        // Lặp qua tất cả khóa học và thêm giao dịch vào mảng
+        for (uint256 i = 1; i < nextCourseId; i++) {
+            for (uint256 j = 0; j < transactionsByCourse[i].length; j++) {
+                allTransactions[index] = transactionsByCourse[i][j];
+                index++;
+            }
+        }
+
+        return allTransactions;
+    }
+
+    function getAllStudents() external view returns (address[] memory) {
         address[] memory tempStudents = new address[](nextCourseId * 10); // Giả sử tối đa mỗi khóa có 10 học viên
         uint256 studentCount = 0;
 
@@ -202,17 +227,34 @@ contract ELearning is Ownable {
         return allStudents;
     }
 
-
     function getCourseBasicInfo(uint256 courseId)
         external
         view
-        returns (string memory, string memory, string memory, uint256, string memory, uint256) 
+        returns (
+            string memory,
+            string memory,
+            string memory,
+            uint256,
+            string memory,
+            uint256
+        )
     {
         Course memory c = courses[courseId];
-        return (c.title, c.courseDetail, c.metadataURI, c.price, c.duration, c.students);
+        return (
+            c.title,
+            c.courseDetail,
+            c.metadataURI,
+            c.price,
+            c.duration,
+            c.students
+        );
     }
 
-    function getCourseTags(uint256 courseId) external view returns (string[] memory) {
+    function getCourseTags(uint256 courseId)
+        external
+        view
+        returns (string[] memory)
+    {
         uint256 count = tagsByCourse[courseId].length;
         string[] memory tagNames = new string[](count);
         for (uint256 i = 0; i < count; i++) {
@@ -236,17 +278,17 @@ contract ELearning is Ownable {
         return (titles, descriptions);
     }
 
-    function getCourseLessons(uint256 courseId) 
-        external 
-        view 
-        returns (string[][] memory, string[][] memory) 
+    function getCourseLessons(uint256 courseId)
+        external
+        view
+        returns (string[][] memory, string[][] memory)
     {
         uint256 seriesCount = seriesByCourse[courseId].length;
         string[][] memory titlesArray = new string[][](seriesCount);
         string[][] memory filesArray = new string[][](seriesCount);
 
         for (uint256 i = 0; i < seriesCount; i++) {
-            uint256 seriesId = seriesByCourse[courseId][i].seriesId;  // ✅ Lấy đúng seriesId
+            uint256 seriesId = seriesByCourse[courseId][i].seriesId; // ✅ Lấy đúng seriesId
 
             Lesson[] memory lessons = lessonsBySeries[seriesId];
 
